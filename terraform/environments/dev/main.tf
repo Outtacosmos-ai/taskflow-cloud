@@ -61,7 +61,7 @@ module "sqs" {
 }
 
 module "backend_secret" {
-  source = "../../modules/secrets"
+  source = "../../modules/secretsmanager"
 
   secret_name        = "taskflow/dev/backend"
   secret_description = "TaskFlow backend secrets (dev)"
@@ -69,7 +69,7 @@ module "backend_secret" {
 }
 
 module "worker_secret" {
-  source = "../../modules/secrets"
+  source = "../../modules/secretsmanager"
 
   secret_name        = "taskflow/dev/worker"
   secret_description = "TaskFlow worker secrets (dev)"
