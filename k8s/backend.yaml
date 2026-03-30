@@ -3,7 +3,9 @@ kind: Deployment
 metadata:
   name: taskflow-backend
 spec:
-  replicas: 2
+  replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: taskflow-backend
