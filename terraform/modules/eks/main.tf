@@ -1,3 +1,4 @@
+# --- EKS Cluster IAM Role ---
 data "aws_iam_policy_document" "cluster_assume_role" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -19,6 +20,7 @@ resource "aws_iam_role_policy_attachment" "cluster_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
 
+# --- EKS Cluster ---
 resource "aws_eks_cluster" "this" {
   name     = var.cluster_name
   version  = var.kubernetes_version
@@ -32,6 +34,7 @@ resource "aws_eks_cluster" "this" {
   depends_on = [aws_iam_role_policy_attachment.cluster_policy]
 }
 
+# --- EKS Node Group IAM Role ---
 data "aws_iam_policy_document" "node_assume_role" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -48,6 +51,7 @@ resource "aws_iam_role" "node" {
   tags               = var.tags
 }
 
+# --- Node Policy Attachments ---
 resource "aws_iam_role_policy_attachment" "node_worker_policy" {
   role       = aws_iam_role.node.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
@@ -63,6 +67,13 @@ resource "aws_iam_role_policy_attachment" "node_registry_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
+# NEW: Permission for the Worker pod to read/delete from SQS
+resource "aws_iam_role_policy_attachment" "node_sqs_policy" {
+  role       = aws_iam_role.node.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSQSFullAccess"
+}
+
+# --- EKS Node Group ---
 resource "aws_eks_node_group" "this" {
   cluster_name    = aws_eks_cluster.this.name
   node_group_name = "${var.cluster_name}-nodes"
@@ -78,9 +89,11 @@ resource "aws_eks_node_group" "this" {
 
   tags = var.tags
 
+  # UPDATED: Added node_sqs_policy to the dependency list
   depends_on = [
     aws_iam_role_policy_attachment.node_worker_policy,
     aws_iam_role_policy_attachment.node_cni_policy,
     aws_iam_role_policy_attachment.node_registry_policy,
+    aws_iam_role_policy_attachment.node_sqs_policy,
   ]
 }
