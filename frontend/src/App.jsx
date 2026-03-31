@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-// FINAL DEMO FIX: Direct connection to your Backend LoadBalancer
 const API_URL = 'http://a17c1f2f83aa44189872346ebb2bb4f6-817499296.us-east-1.elb.amazonaws.com'\;
 
 function App() {
@@ -27,23 +26,22 @@ function App() {
   };
 
   return (
-    <div style={{ padding: '50px', fontFamily: 'Arial', textAlign: 'center', backgroundColor: '#f0f2f5', minHeight: '100vh' }}>
-      <h1 style={{ color: '#1877f2' }}>🚀 TaskFlow Cloud Dashboard</h1>
-      <p>PFE Cloud & DevOps - EKS Deployment</p>
-      <form onSubmit={handleSubmit} style={{ marginBottom: '30px' }}>
+    <div style={{ padding: '50px', fontFamily: 'sans-serif', textAlign: 'center', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+      <h1 style={{ color: '#2563eb' }}>🚀 TaskFlow Cloud Dashboard</h1>
+      <form onSubmit={handleSubmit} style={{ margin: '30px 0' }}>
         <input 
           value={input} 
           onChange={(e) => setInput(e.target.value)}
           placeholder="New Task..." 
-          style={{ padding: '15px', width: '300px', borderRadius: '8px', border: '1px solid #ddd' }}
+          style={{ padding: '12px', width: '300px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
         />
-        <button type="submit" style={{ padding: '15px 25px', marginLeft: '10px', backgroundColor: '#1877f2', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Add Task</button>
+        <button type="submit" style={{ padding: '12px 24px', marginLeft: '10px', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Add Task</button>
       </form>
-      <div style={{ maxWidth: '500px', margin: '0 auto', background: 'white', borderRadius: '10px', padding: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-        {tasks.length === 0 ? <p>No tasks found. Add one above!</p> : tasks.map(t => (
-          <div key={t._id} style={{ padding: '12px', borderBottom: '1px solid #eee', textAlign: 'left', display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ maxWidth: '600px', margin: '0 auto', background: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        {tasks.map(t => (
+          <div key={t._id} style={{ padding: '15px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between' }}>
             <span>{t.title}</span>
-            <span style={{ color: '#888', fontSize: '0.8em' }}>{new Date(t.createdAt).toLocaleTimeString()}</span>
+            <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{new Date(t.createdAt).toLocaleTimeString()}</span>
           </div>
         ))}
       </div>
