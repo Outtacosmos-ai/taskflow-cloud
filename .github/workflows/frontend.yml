@@ -8,19 +8,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: aws-actions/configure-aws-credentials@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-      - uses: aws-actions/amazon-ecr-login@v2
+      - name: Login to Amazon ECR
         id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
       - name: Build and Push
         run: |
           cd frontend
           echo "VITE_API_URL=http://a17c1f2f83aa44189872346ebb2bb4f6-817499296.us-east-1.elb.amazonaws.com" > .env
-          docker build -t ${{ steps.login-ecr.outputs.registry }}/taskflow-frontend:latest .
-          docker push ${{ steps.login-ecr.outputs.registry }}/taskflow-frontend:latest
+          # Hardcoding your account ID to fix the ECR_REGISTRY secret failure
+          docker build -t 362324939829.dkr.ecr.us-east-1.amazonaws.com/taskflow-frontend:latest .
+          docker push 362324939829.dkr.ecr.us-east-1.amazonaws.com/taskflow-frontend:latest
       - name: Deploy
         run: |
           aws eks update-kubeconfig --name taskflow-dev --region us-east-1

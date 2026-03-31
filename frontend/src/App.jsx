@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API_URL = 'http://a17c1f2f83aa44189872346ebb2bb4f6-817499296.us-east-1.elb.amazonaws.com'\;
+const API_URL = 'http://a17c1f2f83aa44189872346ebb2bb4f6-817499296.us-east-1.elb.amazonaws.com';
 
 function App() {
   const [tasks, setTasks] = useState([]);
@@ -38,12 +38,16 @@ function App() {
         <button type="submit" style={{ padding: '12px 24px', marginLeft: '10px', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Add Task</button>
       </form>
       <div style={{ maxWidth: '600px', margin: '0 auto', background: 'white', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-        {tasks.map(t => (
-          <div key={t._id} style={{ padding: '15px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between' }}>
-            <span>{t.title}</span>
-            <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{new Date(t.createdAt).toLocaleTimeString()}</span>
-          </div>
-        ))}
+        {tasks.length === 0 ? (
+           <p style={{ padding: '20px' }}>No tasks found.</p>
+        ) : (
+          tasks.map(t => (
+            <div key={t._id} style={{ padding: '15px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between' }}>
+              <span>{t.title}</span>
+              <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{new Date(t.createdAt).toLocaleTimeString()}</span>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
