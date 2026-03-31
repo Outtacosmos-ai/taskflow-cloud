@@ -14,11 +14,13 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
       - uses: aws-actions/amazon-ecr-login@v2
+        id: login-ecr
       - name: Build and Push
         run: |
-          docker build -t 362324939829.dkr.ecr.us-east-1.amazonaws.com/taskflow-backend:latest ./backend
-          docker push 362324939829.dkr.ecr.us-east-1.amazonaws.com/taskflow-backend:latest
+          cd backend
+          docker build -t ${{ steps.login-ecr.outputs.registry }}/taskflow-backend:latest .
+          docker push ${{ steps.login-ecr.outputs.registry }}/taskflow-backend:latest
       - name: Deploy
         run: |
-          aws eks update-kubeconfig --name taskflow-cluster --region us-east-1
+          aws eks update-kubeconfig --name taskflow-dev --region us-east-1
           kubectl rollout restart deployment taskflow-backend
