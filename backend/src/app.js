@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const healthRouter = require('./routes/health');
+const taskRouter = require('./routes/tasks'); // 1. Import the new router
 
 const app = express();
 
@@ -11,6 +12,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/health', healthRouter);
+app.use('/api/tasks', taskRouter); // 2. Mount the tasks API
 
 // ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((_req, res) => {

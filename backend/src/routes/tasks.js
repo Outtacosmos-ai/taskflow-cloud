@@ -12,16 +12,14 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Create a task (This will also trigger the SQS message later!)
+// Create a task
 router.post('/', async (req, res) => {
   const task = new Task({
     title: req.body.title,
     description: req.body.description
   });
-
   try {
     const newTask = await task.save();
-    // TODO: Send to SQS here for Requirement #12
     res.status(201).json(newTask);
   } catch (err) {
     res.status(400).json({ message: err.message });
