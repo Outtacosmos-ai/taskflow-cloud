@@ -23,15 +23,14 @@ jobs:
 
       - name: Build and Push
         run: |
-          # 1. Create the .env inside the build context
+          # Create .env inside the subfolder so Docker finds it
           echo "VITE_API_URL=http://a17c1f2f83aa44189872346ebb2bb4f6-817499296.us-east-1.elb.amazonaws.com" > frontend/.env
           
-          # 2. Build and Push using the dynamic registry URL
+          # Build using the frontend subfolder as context
           docker build -t ${{ steps.login-ecr.outputs.registry }}/taskflow-frontend:latest ./frontend
           docker push ${{ steps.login-ecr.outputs.registry }}/taskflow-frontend:latest
 
       - name: Deploy to EKS
         run: |
-          # SENIOR FIX: Ensure the cluster name matches your Terraform/AWS name
-          aws eks update-kubeconfig --name taskflow-cluster --region us-east-1
+          aws eks update-kubeconfig --name taskflow-dev --region us-east-1
           kubectl rollout restart deployment taskflow-frontend
