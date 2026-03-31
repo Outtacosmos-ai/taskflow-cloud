@@ -1,30 +1,19 @@
 const express = require('express');
 const cors = require('cors');
 const healthRouter = require('./routes/health');
-const taskRouter = require('./routes/tasks'); // 1. Import the new router
+const taskRouter = require('./routes/tasks');
 
 const app = express();
 
-// ─── Middleware ───────────────────────────────────────────────────────────────
-app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
+app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// ─── Routes ───────────────────────────────────────────────────────────────────
+// Routes
 app.use('/api/health', healthRouter);
-app.use('/api/tasks', taskRouter); // 2. Mount the tasks API
+app.use('/api/tasks', taskRouter);
 
-// ─── 404 ──────────────────────────────────────────────────────────────────────
-app.use((_req, res) => {
-  res.status(404).json({ error: 'Not found' });
-});
-
-// ─── Global error handler ─────────────────────────────────────────────────────
-// eslint-disable-next-line no-unused-vars
-app.use((err, _req, res, _next) => {
-  const isProduction = process.env.NODE_ENV === 'production';
-  const message = isProduction ? 'Internal server error' : (err.message || 'Internal server error');
-  res.status(err.status || 500).json({ error: message });
+app.use((err, req, res, next) => {
+  res.status(500).json({ error: err.message });
 });
 
 module.exports = app;

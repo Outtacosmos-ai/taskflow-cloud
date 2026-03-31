@@ -2,27 +2,22 @@ const express = require('express');
 const router = express.Router();
 const Task = require('../models/Task');
 
-// Get all tasks
 router.get('/', async (req, res) => {
   try {
     const tasks = await Task.find().sort({ createdAt: -1 });
     res.json(tasks);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
-// Create a task
 router.post('/', async (req, res) => {
-  const task = new Task({
-    title: req.body.title,
-    description: req.body.description
-  });
   try {
-    const newTask = await task.save();
-    res.status(201).json(newTask);
+    const newTask = new Task({ title: req.body.title });
+    const savedTask = await newTask.save();
+    res.status(201).json(savedTask);
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(400).json({ error: err.message });
   }
 });
 
