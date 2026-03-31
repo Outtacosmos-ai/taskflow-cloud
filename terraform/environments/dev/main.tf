@@ -1,5 +1,12 @@
 terraform {
-  required_version = ">= 1.7"
+  required_version = ">= 1.0.0"
+
+  backend "s3" {
+    bucket  = "aws-devops-capstone-state-mohamed"
+    key     = "dev/terraform.tfstate"
+    region  = "us-east-1"
+    encrypt = true
+  }
 
   required_providers {
     aws = {
@@ -7,71 +14,55 @@ terraform {
       version = "~> 5.0"
     }
   }
-
-  backend "s3" {
-    # Fill in your S3 backend details or use terraform init -backend-config
-    # bucket         = "taskflow-terraform-state"
-    # key            = "dev/terraform.tfstate"
-    # region         = "us-east-1"
-    # dynamodb_table = "taskflow-terraform-locks"
-    # encrypt        = true
-  }
 }
 
 provider "aws" {
   region = var.aws_region
 }
 
-locals {
-  tags = {
-    Project     = "taskflow-cloud"
-    Environment = "dev"
-    ManagedBy   = "terraform"
-  }
-}
-
+# --- VPC Module ---
 module "vpc" {
-  source = "../../modules/vpc"
-
-  name            = "taskflow-dev"
-  vpc_cidr        = "10.0.0.0/16"
-  azs             = ["${var.aws_region}a", "${var.aws_region}b"]
+  source          = "../../modules/vpc"
+  name            = "taskflow-dev-vpc"
+  azs             = ["us-east-1a", "us-east-1b"]
+  vpc_cidr        = "10.0.0.0/16" 
   public_subnets  = ["10.0.1.0/24", "10.0.2.0/24"]
   private_subnets = ["10.0.11.0/24", "10.0.12.0/24"]
-  tags            = local.tags
+  tags            = var.tags
 }
 
+# --- EKS Module ---
 module "eks" {
-  source = "../../modules/eks"
-
-  cluster_name      = "taskflow-dev"
-  vpc_id            = module.vpc.vpc_id
-  subnet_ids        = module.vpc.private_subnet_ids
-  node_desired_size = 2
-  node_min_size     = 1
-  node_max_size     = 3
-  tags              = local.tags
+  source             = "../../modules/eks"
+  cluster_name       = var.cluster_name
+  kubernetes_version = "1.29"
+  
+  vpc_id             = module.vpc.vpc_id
+  subnet_ids         = module.vpc.private_subnet_ids
+  
+  node_instance_type = var.node_instance_type 
+  node_desired_size  = var.node_desired_size
+  node_min_size      = var.node_min_size
+  node_max_size      = var.node_max_size
+  tags               = var.tags
 }
 
+# --- SQS Module ---
 module "sqs" {
-  source = "../../modules/sqs"
-
+  source     = "../../modules/sqs"
   queue_name = "taskflow-notifications-dev"
-  tags       = local.tags
+  tags       = var.tags
 }
 
+# --- Secrets ---
 module "backend_secret" {
-  source = "../../modules/secretsmanager"
-
-  secret_name        = "taskflow/dev/backend"
-  secret_description = "TaskFlow backend secrets (dev)"
-  tags               = local.tags
+  source      = "../../modules/secretsmanager"
+  secret_name = "taskflow/dev/backend"
+  tags        = var.tags
 }
 
 module "worker_secret" {
-  source = "../../modules/secretsmanager"
-
-  secret_name        = "taskflow/dev/worker"
-  secret_description = "TaskFlow worker secrets (dev)"
-  tags               = local.tags
+  source      = "../../modules/secretsmanager"
+  secret_name = "taskflow/dev/worker"
+  tags        = var.tags
 }

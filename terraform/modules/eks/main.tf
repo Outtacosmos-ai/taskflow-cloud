@@ -27,7 +27,9 @@ resource "aws_eks_cluster" "this" {
   role_arn = aws_iam_role.cluster.arn
 
   vpc_config {
-    subnet_ids = var.subnet_ids
+    subnet_ids              = var.subnet_ids
+    endpoint_private_access = true
+    endpoint_public_access  = true # Set to true so you can use kubectl from home
   }
 
   tags       = var.tags
@@ -51,7 +53,7 @@ resource "aws_iam_role" "node" {
   tags               = var.tags
 }
 
-# --- Node Policy Attachments ---
+# --- Node Policy Attachments (MANDATORY FOR JOINING) ---
 resource "aws_iam_role_policy_attachment" "node_worker_policy" {
   role       = aws_iam_role.node.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
@@ -67,7 +69,13 @@ resource "aws_iam_role_policy_attachment" "node_registry_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
-# NEW: Permission for the Worker pod to read/delete from SQS
+# Requirement #12: CloudWatch Monitoring
+resource "aws_iam_role_policy_attachment" "node_cloudwatch_policy" {
+  role       = aws_iam_role.node.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+}
+
+# Permission for Worker pods to access SQS
 resource "aws_iam_role_policy_attachment" "node_sqs_policy" {
   role       = aws_iam_role.node.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSQSFullAccess"
@@ -79,6 +87,8 @@ resource "aws_eks_node_group" "this" {
   node_group_name = "${var.cluster_name}-nodes"
   node_role_arn   = aws_iam_role.node.arn
   subnet_ids      = var.subnet_ids
+  
+  # The fix for pod density (17 pods per node)
   instance_types  = [var.node_instance_type]
 
   scaling_config {
@@ -87,13 +97,17 @@ resource "aws_eks_node_group" "this" {
     max_size     = var.node_max_size
   }
 
+  update_config {
+    max_unavailable = 1
+  }
+
   tags = var.tags
 
-  # UPDATED: Added node_sqs_policy to the dependency list
   depends_on = [
     aws_iam_role_policy_attachment.node_worker_policy,
     aws_iam_role_policy_attachment.node_cni_policy,
     aws_iam_role_policy_attachment.node_registry_policy,
+    aws_iam_role_policy_attachment.node_cloudwatch_policy,
     aws_iam_role_policy_attachment.node_sqs_policy,
   ]
 }
