@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API_URL = 'http://a17c1f2f83aa44189872346ebb2bb4f6-817499296.us-east-1.elb.amazonaws.com';
+const API_URL = 'http://a50c0eecd336642059badb72570cf35e-2044685652.us-east-1.elb.amazonaws.com';
 
 function App() {
   const [tasks, setTasks] = useState([]);
@@ -9,20 +9,29 @@ function App() {
 
   const getTasks = () => {
     axios.get(`${API_URL}/api/tasks`)
-      .then(res => setTasks(res.data))
-      .catch(err => console.error("API Error:", err));
+      .then(res => {
+        setTasks(res.data.tasks || []);
+      })
+      .catch(err => {
+        console.error("API Fetch Error:", err);
+        setTasks([]);
+      });
   };
 
-  useEffect(() => { getTasks(); }, []);
+  useEffect(() => { 
+    getTasks(); 
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if(!input) return;
+    if (!input.trim()) return;
     try {
       await axios.post(`${API_URL}/api/tasks`, { title: input });
       setInput('');
       getTasks();
-    } catch (err) { console.error("Post error:", err); }
+    } catch (err) { 
+      console.error("Post error:", err); 
+    }
   };
 
   return (
@@ -44,7 +53,9 @@ function App() {
           tasks.map(t => (
             <div key={t._id} style={{ padding: '15px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between' }}>
               <span>{t.title}</span>
-              <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{new Date(t.createdAt).toLocaleTimeString()}</span>
+              <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>
+                {t.createdAt ? new Date(t.createdAt).toLocaleTimeString() : ''}
+              </span>
             </div>
           ))
         )}
@@ -54,3 +65,4 @@ function App() {
 }
 
 export default App;
+EOF
