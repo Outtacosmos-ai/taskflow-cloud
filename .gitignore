@@ -68,3 +68,5 @@ junit.xml
 # ─── Kubernetes ───────────────────────────────────────────────────────────────
 kubeconfig
 *.kubeconfig
+*.tfplan
+terraform.tfstate*
