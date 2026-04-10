@@ -1,23 +1,53 @@
-# --- EKS Cluster IAM Role ---
-data "aws_iam_policy_document" "cluster_assume_role" {
-  statement {
-    actions = ["sts:AssumeRole"]
-    principals {
-      type        = "Service"
-      identifiers = ["eks.amazonaws.com"]
-    }
-  }
-}
-
+# --- IAM Role for EKS Cluster ---
 resource "aws_iam_role" "cluster" {
-  name               = "${var.cluster_name}-cluster-role"
-  assume_role_policy = data.aws_iam_policy_document.cluster_assume_role.json
-  tags               = var.tags
+  name = "${var.cluster_name}-cluster-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "eks.amazonaws.com"
+      }
+    }]
+  })
 }
 
 resource "aws_iam_role_policy_attachment" "cluster_policy" {
-  role       = aws_iam_role.cluster.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+  role       = aws_iam_role.cluster.name
+}
+
+# --- IAM Role for EKS Node Group ---
+resource "aws_iam_role" "node" {
+  name = "${var.cluster_name}-node-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "ec2.amazonaws.com"
+      }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "worker_node_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+  role       = aws_iam_role.node.name
+}
+
+resource "aws_iam_role_policy_attachment" "cni_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+  role       = aws_iam_role.node.name
+}
+
+resource "aws_iam_role_policy_attachment" "registry_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+  role       = aws_iam_role.node.name
 }
 
 # --- EKS Cluster ---
@@ -27,58 +57,12 @@ resource "aws_eks_cluster" "this" {
   role_arn = aws_iam_role.cluster.arn
 
   vpc_config {
-    subnet_ids              = var.subnet_ids
-    endpoint_private_access = true
-    endpoint_public_access  = true # Set to true so you can use kubectl from home
+    subnet_ids = var.subnet_ids
   }
 
-  tags       = var.tags
-  depends_on = [aws_iam_role_policy_attachment.cluster_policy]
-}
-
-# --- EKS Node Group IAM Role ---
-data "aws_iam_policy_document" "node_assume_role" {
-  statement {
-    actions = ["sts:AssumeRole"]
-    principals {
-      type        = "Service"
-      identifiers = ["ec2.amazonaws.com"]
-    }
-  }
-}
-
-resource "aws_iam_role" "node" {
-  name               = "${var.cluster_name}-node-role"
-  assume_role_policy = data.aws_iam_policy_document.node_assume_role.json
-  tags               = var.tags
-}
-
-# --- Node Policy Attachments (MANDATORY FOR JOINING) ---
-resource "aws_iam_role_policy_attachment" "node_worker_policy" {
-  role       = aws_iam_role.node.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
-}
-
-resource "aws_iam_role_policy_attachment" "node_cni_policy" {
-  role       = aws_iam_role.node.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
-}
-
-resource "aws_iam_role_policy_attachment" "node_registry_policy" {
-  role       = aws_iam_role.node.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-}
-
-# Requirement #12: CloudWatch Monitoring
-resource "aws_iam_role_policy_attachment" "node_cloudwatch_policy" {
-  role       = aws_iam_role.node.name
-  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
-}
-
-# Permission for Worker pods to access SQS
-resource "aws_iam_role_policy_attachment" "node_sqs_policy" {
-  role       = aws_iam_role.node.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonSQSFullAccess"
+  depends_on = [
+    aws_iam_role_policy_attachment.cluster_policy
+  ]
 }
 
 # --- EKS Node Group ---
@@ -87,9 +71,6 @@ resource "aws_eks_node_group" "this" {
   node_group_name = "${var.cluster_name}-nodes"
   node_role_arn   = aws_iam_role.node.arn
   subnet_ids      = var.subnet_ids
-  
-  # The fix for pod density (17 pods per node)
-  instance_types  = [var.node_instance_type]
 
   scaling_config {
     desired_size = var.node_desired_size
@@ -97,17 +78,22 @@ resource "aws_eks_node_group" "this" {
     max_size     = var.node_max_size
   }
 
-  update_config {
-    max_unavailable = 1
-  }
-
-  tags = var.tags
+  instance_types = [var.node_instance_type]
 
   depends_on = [
-    aws_iam_role_policy_attachment.node_worker_policy,
-    aws_iam_role_policy_attachment.node_cni_policy,
-    aws_iam_role_policy_attachment.node_registry_policy,
-    aws_iam_role_policy_attachment.node_cloudwatch_policy,
-    aws_iam_role_policy_attachment.node_sqs_policy,
+    aws_iam_role_policy_attachment.worker_node_policy,
+    aws_iam_role_policy_attachment.cni_policy,
+    aws_iam_role_policy_attachment.registry_policy,
   ]
+}
+
+# --- IRSA SUPPORT (OIDC Provider) ---
+data "tls_certificate" "this" {
+  url = aws_eks_cluster.this.identity[0].oidc[0].issuer
+}
+
+resource "aws_iam_openid_connect_provider" "oidc" {
+  client_id_list  = ["sts.amazonaws.com"]
+  thumbprint_list = [data.tls_certificate.this.certificates[0].sha1_fingerprint]
+  url             = aws_eks_cluster.this.identity[0].oidc[0].issuer
 }

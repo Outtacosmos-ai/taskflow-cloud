@@ -1,14 +1,6 @@
 terraform {
   required_version = ">= 1.0.0"
 
-  # DISABLED REMOTE BACKEND FOR MIGRATION
-  # backend "s3" {
-  #   bucket  = "aws-devops-capstone-state-mohamed"
-  #   key     = "dev/terraform.tfstate"
-  #   region  = "us-east-1"
-  #   encrypt = true
-  # }
-
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -36,7 +28,7 @@ module "vpc" {
 module "eks" {
   source             = "../../modules/eks"
   cluster_name       = var.cluster_name
-  kubernetes_version = "1.29"
+  kubernetes_version = "1.30"
   
   vpc_id             = module.vpc.vpc_id
   subnet_ids         = module.vpc.private_subnet_ids
@@ -55,6 +47,61 @@ module "sqs" {
   tags       = var.tags
 }
 
+# --- IAM Role for Service Accounts (IRSA) ---
+# This allows the pods to securely access SQS and CloudWatch
+resource "aws_iam_role" "taskflow_pod_role" {
+  name = "taskflow-pod-role-dev"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRoleWithWebIdentity"
+        Effect = "Allow"
+        Principal = {
+          Federated = module.eks.oidc_provider_arn
+        }
+        Condition = {
+          StringEquals = {
+            "${replace(module.eks.cluster_oidc_issuer_url, "https://", "")}:sub" = "system:serviceaccount:taskflow:taskflow-sa"
+          }
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "pod_access_policy" {
+  name = "taskflow-pod-permissions"
+  role = aws_iam_role.taskflow_pod_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "sqs:SendMessage",
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes"
+        ]
+        Resource = module.sqs.queue_arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogStreams"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 # --- Secrets ---
 module "backend_secret" {
   source      = "../../modules/secretsmanager"
@@ -68,7 +115,7 @@ module "worker_secret" {
   tags        = var.tags
 }
 
-# --- BUDGET MONGODB (EC2 Free Tier) ---
+# --- BUDGET MONGODB (EC2) ---
 resource "aws_security_group" "mongodb_sg" {
   name        = "mongodb-sg-dev"
   description = "Allow MongoDB traffic"
@@ -78,7 +125,7 @@ resource "aws_security_group" "mongodb_sg" {
     from_port   = 27017
     to_port     = 27017
     protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"] # Internal VPC traffic only
+    cidr_blocks = [module.vpc.vpc_cidr] # Internal VPC traffic only
   }
 
   egress {
@@ -91,7 +138,7 @@ resource "aws_security_group" "mongodb_sg" {
 
 resource "aws_instance" "mongodb_server" {
   ami           = "ami-0c7217cdde317cfec" # Amazon Linux 2023
-  instance_type = "t3.micro"             # Free Tier eligible
+  instance_type = "t3.micro" 
   subnet_id     = module.vpc.private_subnet_ids[0]
   vpc_security_group_ids = [aws_security_group.mongodb_sg.id]
 
@@ -105,4 +152,8 @@ resource "aws_instance" "mongodb_server" {
               EOF
 
   tags = merge(var.tags, { Name = "TaskFlow-Dev-Budget-DB" })
+}
+
+output "pod_role_arn" {
+  value = aws_iam_role.taskflow_pod_role.arn
 }
