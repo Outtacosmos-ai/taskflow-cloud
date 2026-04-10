@@ -14,14 +14,14 @@ spec:
     spec:
       containers:
       - name: worker
-        image: 362324939829.dkr.ecr.us-east-1.amazonaws.com/taskflow-worker:latest
+        image: 657577038059.dkr.ecr.us-east-1.amazonaws.com/taskflow-worker:latest
         env:
         - name: NODE_ENV
           value: "production"
         - name: MONGODB_URI
           value: "mongodb://mongodb:27017/taskflow"
         - name: SQS_QUEUE_URL
-          value: "https://sqs.us-east-1.amazonaws.com/362324939829/taskflow-notifications-dev"
+          value: "https://sqs.us-east-1.amazonaws.com/657577038059/taskflow-notifications-dev"
         - name: AWS_REGION
           value: "us-east-1"
         resources:

@@ -70,18 +70,18 @@ taskflow-cloud/
 
 ## Tech Stack
 
-| Layer          | Technology                          |
-|----------------|-------------------------------------|
+| Layer          | Technology                                          |
+|----------------|-----------------------------------------------------|
 | Frontend       | React 18, Vite, TailwindCSS, Axios, React Router v6 |
-| Backend        | Node.js 20, Express, Mongoose, Winston, CORS |
-| Worker         | Node.js 20, AWS SDK v3 (SQS), Nodemailer |
-| Database       | MongoDB (Atlas or self-hosted)      |
-| Message Queue  | AWS SQS                             |
-| Container      | Docker (multi-stage builds)         |
-| Orchestration  | Kubernetes / AWS EKS                |
-| IaC            | Terraform (AWS provider)            |
-| CI/CD          | GitHub Actions                      |
-| Secrets        | AWS Secrets Manager                 |
+| Backend        | Node.js 20, Express, Mongoose, Winston, CORS        |
+| Worker         | Node.js 20, AWS SDK v3 (SQS), Nodemailer            |
+| Database       | MongoDB (Atlas or self-hosted)                      |
+| Message Queue  | AWS SQS                                             |
+| Container      | Docker (multi-stage builds)                         |
+| Orchestration  | Kubernetes / AWS EKS                                |
+| IaC            | Terraform (AWS provider)                            |
+| CI/CD          | GitHub Actions                                      |
+| Secrets        | AWS Secrets Manager                                 |
 
 ---
 

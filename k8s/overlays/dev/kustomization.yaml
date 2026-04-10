@@ -5,11 +5,11 @@ resources:
 namespace: taskflow
 images:
   - name: BACKEND_IMAGE
-    newName: 362324939829.dkr.ecr.us-east-1.amazonaws.com/taskflow-backend
-    newTag: latest
+    newName: 657577038059.dkr.ecr.us-east-1.amazonaws.com/taskflow-backend
+    newTag: v1.4
   - name: FRONTEND_IMAGE
-    newName: 362324939829.dkr.ecr.us-east-1.amazonaws.com/taskflow-frontend
-    newTag: latest
+    newName: 657577038059.dkr.ecr.us-east-1.amazonaws.com/taskflow-frontend
+    newTag: v1.4
   - name: WORKER_IMAGE
-    newName: 362324939829.dkr.ecr.us-east-1.amazonaws.com/taskflow-worker
-    newTag: latest
+    newName: 657577038059.dkr.ecr.us-east-1.amazonaws.com/taskflow-worker
+    newTag: v1.4

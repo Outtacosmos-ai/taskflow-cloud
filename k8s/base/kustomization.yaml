@@ -1,4 +1,5 @@
 resources:
+  - frontend-deployment.yaml
   - backend.yaml
   - frontend-service.yaml
   - hpa.yaml
