@@ -10,7 +10,8 @@ COPY . .
 RUN npm run build
 
 # ── Stage 2: serve with nginx ─────────────────────────────────────────────────
-FROM nginx:1.25-alpine AS production
+# CHANGED: Bumped from 1.25 to 1.27 to pull a modern, secure Alpine OS
+FROM nginx:1.27-alpine AS production
 
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
