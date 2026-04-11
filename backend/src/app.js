@@ -36,6 +36,7 @@ app.use('/api/tasks', taskRouter);
 app.use('/api/health', healthRouter);
 
 // NUCLEAR ERROR HANDLER: This is what captures the drag-and-drop crash
+// eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   logger.error('!!! CRASH DETECTED !!!');
   logger.error('METHOD:', req.method, 'URL:', req.url);
