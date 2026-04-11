@@ -33,11 +33,6 @@ const TaskSchema = new mongoose.Schema(
     dueDate: {
       type: Date,
     },
-    // Assuming you have user authentication
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
   },
   { timestamps: true },
 );
