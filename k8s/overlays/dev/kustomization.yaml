@@ -3,13 +3,14 @@ kind: Kustomization
 resources:
   - ../../base
 namespace: taskflow
+
 images:
   - name: BACKEND_IMAGE
     newName: 657577038059.dkr.ecr.us-east-1.amazonaws.com/taskflow-backend
-    newTag: v1.4
+    newTag: latest
   - name: FRONTEND_IMAGE
     newName: 657577038059.dkr.ecr.us-east-1.amazonaws.com/taskflow-frontend
-    newTag: v1.4
+    newTag: latest
   - name: WORKER_IMAGE
     newName: 657577038059.dkr.ecr.us-east-1.amazonaws.com/taskflow-worker
-    newTag: v1.4
+    newTag: latest

@@ -1,58 +1,41 @@
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: taskflow-sa
-  namespace: taskflow
-  annotations:
-    # 1. The Golden Ticket (IRSA):
-    eks.amazonaws.com/role-arn: arn:aws:iam::657577038059:role/taskflow-pod-role-dev
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: taskflow-backend
-  namespace: taskflow
-spec:
-  replicas: 1
-  strategy:
-    type: Recreate
-  selector:
-    matchLabels:
-      app: taskflow-backend
-  template:
-    metadata:
-      labels:
-        app: taskflow-backend
-    spec:
-      serviceAccountName: taskflow-sa # <--- Injects the IAM Role
-      containers:
-        - name: backend
-          image: 657577038059.dkr.ecr.us-east-1.amazonaws.com/taskflow-backend:latest
-          ports:
-            - containerPort: 3000
-          env:
-            - name: NODE_ENV
-              value: "production"
-            - name: MONGODB_URI
-              # 2. Update with your EC2 Private IP:
-              value: "mongodb://10.0.11.179:27017/taskflow"
-            - name: SQS_QUEUE_URL
-              value: "https://sqs.us-east-1.amazonaws.com/657577038059/taskflow-notifications-dev"
-            - name: AWS_REGION
-              value: "us-east-1"
-            - name: JWT_SECRET
-              value: "taskflow_super_secret_key_123"
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: taskflow-backend
-  namespace: taskflow
-spec:
-  type: LoadBalancer
-  selector:
-    app: taskflow-backend
-  ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 3000
+name: Deploy Backend
+
+on:
+  push:
+    paths: ['backend/**']
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and Push to ECR
+        run: |
+          cd backend
+          docker build -t ${{ steps.login-ecr.outputs.registry }}/taskflow-backend:${{ github.sha }} .
+          docker push ${{ steps.login-ecr.outputs.registry }}/taskflow-backend:${{ github.sha }}
+
+      - name: Deploy to EKS
+        env:
+          KUBECONFIG: /home/runner/.kube/config
+        run: |
+          aws eks update-kubeconfig --name taskflow-dev --region us-east-1
+          kubectl config use-context arn:aws:eks:us-east-1:657577038059:cluster/taskflow-dev
+          
+          # This updates the backend deployment to the new image
+          kubectl set image deployment/taskflow-backend backend=${{ steps.login-ecr.outputs.registry }}/taskflow-backend:${{ github.sha }} -n taskflow
+          kubectl rollout status deployment/taskflow-backend -n taskflow

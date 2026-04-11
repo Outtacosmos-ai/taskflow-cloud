@@ -26,27 +26,19 @@ jobs:
       - name: Build and Push to ECR
         run: |
           cd frontend
-          # Injects your Backend ELB URL into the build environment
           echo "VITE_API_URL=http://a8b699a5be70a47fc93ae874a090787f-1944154350.us-east-1.elb.amazonaws.com" > .env
           echo "VITE_API_URL=http://a8b699a5be70a47fc93ae874a090787f-1944154350.us-east-1.elb.amazonaws.com" > .env.production
 
-          # Build versioned image using Git SHA
           docker build -t ${{ steps.login-ecr.outputs.registry }}/taskflow-frontend:${{ github.sha }} .
           docker push ${{ steps.login-ecr.outputs.registry }}/taskflow-frontend:${{ github.sha }}
 
       - name: Deploy to EKS
         env:
-          # THIS IS THE FIX: Forces kubectl to find the EKS config file
           KUBECONFIG: /home/runner/.kube/config
         run: |
-          # 1. Download the cluster config
           aws eks update-kubeconfig --name taskflow-dev --region us-east-1
-          
-          # 2. Force kubectl to use the specific EKS context (Prevents localhost:8080)
           kubectl config use-context arn:aws:eks:us-east-1:657577038059:cluster/taskflow-dev
           
-          # 3. Update the deployment with the new image
+          # This updates the image to the new version we just pushed
           kubectl set image deployment/taskflow-frontend frontend=${{ steps.login-ecr.outputs.registry }}/taskflow-frontend:${{ github.sha }} -n taskflow
-          
-          # 4. Optional: Verify the rollout
           kubectl rollout status deployment/taskflow-frontend -n taskflow

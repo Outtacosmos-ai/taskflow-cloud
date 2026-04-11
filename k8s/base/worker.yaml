@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: taskflow-worker
+  namespace: taskflow
 spec:
   replicas: 1
   selector:
@@ -12,9 +13,10 @@ spec:
       labels:
         app: taskflow-worker
     spec:
+      serviceAccountName: taskflow-sa # Added this so worker can read SQS
       containers:
       - name: worker
-        image: 657577038059.dkr.ecr.us-east-1.amazonaws.com/taskflow-worker:latest
+        image: WORKER_IMAGE # Placeholder for Kustomize
         env:
         - name: NODE_ENV
           value: "production"
