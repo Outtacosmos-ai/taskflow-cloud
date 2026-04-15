@@ -1,7 +1,13 @@
+// PATH: frontend/src/services/api.js
 import axios from 'axios';
 
+// Ensure the trailing slash is handled properly when appending /api
+const baseURL = import.meta.env.VITE_API_URL 
+  ? `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api`
+  : 'http://localhost:3000/api';
+
 const api = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL || 'http://aa8dc67a7c9d349849492cf0406cef72-517214794.us-east-1.elb.amazonaws.com'}/api`,
+  baseURL,
   timeout: 10000,
   headers: { 'Content-Type': 'application/json' },
 });
