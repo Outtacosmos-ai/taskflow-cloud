@@ -9,12 +9,12 @@ terraform {
   }
 
   backend "s3" {
-    # Fill in your S3 backend details or use terraform init -backend-config
-    # bucket         = "taskflow-terraform-state"
-    # key            = "prod/terraform.tfstate"
-    # region         = "us-east-1"
-    # dynamodb_table = "taskflow-terraform-locks"
-    # encrypt        = true
+    Fill in your S3 backend details or use terraform init -backend-config
+    bucket         = "taskflow-terraform-state"
+    key            = "prod/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "taskflow-terraform-locks"
+    encrypt        = true
   }
 }
 

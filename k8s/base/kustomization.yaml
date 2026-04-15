@@ -1,10 +1,13 @@
 resources:
   - namespace.yaml
+  - secrets.yaml
   - mongodb-pvc.yaml
   - mongodb-deployment.yaml
   - mongodb-service.yaml
-  - backend.yaml            # Service + Deployment are now combined here
+  - backend.yaml
+  - backend-service.yaml
   - frontend-deployment.yaml
   - frontend-service.yaml
   - worker.yaml
   - hpa.yaml
+  - ingress.yaml

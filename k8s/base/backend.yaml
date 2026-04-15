@@ -14,7 +14,10 @@ metadata:
 spec:
   replicas: 1
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: taskflow-backend
@@ -26,18 +29,27 @@ spec:
       serviceAccountName: taskflow-sa
       containers:
       - name: backend
-        image: BACKEND_IMAGE # Placeholder for Kustomize
+        image: BACKEND_IMAGE
         ports:
         - containerPort: 3000
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
         env:
         - name: NODE_ENV
           value: "production"
         - name: MONGODB_URI
-          # Use the internal K8s service name instead of an external IP
           value: "mongodb://mongodb:27017/taskflow"
         - name: SQS_QUEUE_URL
           value: "https://sqs.us-east-1.amazonaws.com/657577038059/taskflow-notifications-dev"
         - name: AWS_REGION
           value: "us-east-1"
         - name: JWT_SECRET
-          value: "taskflow_super_secret_key_123"
+          valueFrom:
+            secretKeyRef:
+              name: taskflow-secrets
+              key: jwt-secret
