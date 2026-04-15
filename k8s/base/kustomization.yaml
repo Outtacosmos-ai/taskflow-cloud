@@ -10,4 +10,3 @@ resources:
   - frontend-service.yaml
   - worker.yaml
   - hpa.yaml
-  - ingress.yaml

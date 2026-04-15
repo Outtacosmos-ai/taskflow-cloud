@@ -4,7 +4,7 @@ metadata:
   name: taskflow-frontend
   namespace: taskflow
 spec:
-  type: ClusterIP
+  type: LoadBalancer
   selector:
     app: taskflow-frontend
   ports:
