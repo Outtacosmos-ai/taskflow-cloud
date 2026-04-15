@@ -1,20 +1,16 @@
-# ── Stage 1: build ────────────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --prefer-offline
+RUN npm ci
 COPY . .
 RUN npm run build
 
-# ── Stage 2: serve with nginx ─────────────────────────────────────────────────
 FROM nginx:1.27-alpine AS production
-
-# Remove default configs to prevent collisions
-RUN rm /etc/nginx/conf.d/default.conf
-
+# Remove ALL default configs
+RUN rm -rf /etc/nginx/conf.d/*
 COPY --from=builder /app/dist /usr/share/nginx/html
-# Copy our custom config to the main nginx path
-COPY nginx.custom.conf /etc/nginx/conf.d/default.conf
-
+# Copy to a safe location
+COPY nginx.custom.conf /etc/nginx/nginx.conf
 EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+# Force Nginx to use our file and skip all entrypoint logic
+CMD ["nginx", "-g", "daemon off;", "-c", "/etc/nginx/nginx.conf"]
