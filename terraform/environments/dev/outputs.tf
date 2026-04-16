@@ -13,3 +13,8 @@ output "eks_cluster_endpoint" {
 output "sqs_queue_url" {
   value = module.sqs.queue_url
 }
+
+output "mongodb_private_ip" {
+  description = "The Private IP of the MongoDB server"
+  value       = aws_instance.mongodb_server.private_ip
+}

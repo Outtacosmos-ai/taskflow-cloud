@@ -1,6 +1,14 @@
 terraform {
   required_version = ">= 1.0.0"
 
+  backend "s3" {
+    bucket         = "taskflow-terraform-state-657577038059"
+    key            = "dev/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "taskflow-terraform-locks"
+    encrypt        = true
+  }
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -18,7 +26,7 @@ module "vpc" {
   source          = "../../modules/vpc"
   name            = "taskflow-dev-vpc"
   azs             = ["us-east-1a", "us-east-1b"]
-  vpc_cidr        = "10.0.0.0/16" 
+  vpc_cidr         = "10.0.0.0/16" 
   public_subnets  = ["10.0.1.0/24", "10.0.2.0/24"]
   private_subnets = ["10.0.11.0/24", "10.0.12.0/24"]
   tags            = var.tags
@@ -48,7 +56,6 @@ module "sqs" {
 }
 
 # --- IAM Role for Service Accounts (IRSA) ---
-# This allows the pods to securely access SQS and CloudWatch
 resource "aws_iam_role" "taskflow_pod_role" {
   name = "taskflow-pod-role-dev"
 
@@ -117,15 +124,15 @@ module "worker_secret" {
 
 # --- BUDGET MONGODB (EC2) ---
 resource "aws_security_group" "mongodb_sg" {
-  name        = "mongodb-sg-dev"
-  description = "Allow MongoDB traffic"
-  vpc_id      = module.vpc.vpc_id 
+  name         = "mongodb-sg-dev"
+  description  = "Allow MongoDB traffic"
+  vpc_id       = module.vpc.vpc_id 
 
   ingress {
     from_port   = 27017
     to_port     = 27017
     protocol    = "tcp"
-    cidr_blocks = [module.vpc.vpc_cidr] # Internal VPC traffic only
+    cidr_blocks = [module.vpc.vpc_cidr]
   }
 
   egress {
@@ -137,9 +144,9 @@ resource "aws_security_group" "mongodb_sg" {
 }
 
 resource "aws_instance" "mongodb_server" {
-  ami           = "ami-0c7217cdde317cfec" # Amazon Linux 2023
-  instance_type = "t3.micro" 
-  subnet_id     = module.vpc.private_subnet_ids[0]
+  ami                    = var.mongodb_ami
+  instance_type          = var.mongodb_instance_type
+  subnet_id              = module.vpc.private_subnet_ids[0]
   vpc_security_group_ids = [aws_security_group.mongodb_sg.id]
 
   user_data = <<-EOF

@@ -38,3 +38,16 @@ variable "tags" {
     Project     = "taskflow"
   }
 }
+
+# --- MongoDB Variables ---
+variable "mongodb_instance_type" {
+  description = "Instance type for the MongoDB EC2"
+  type        = string
+  default     = "t3.micro"
+}
+
+variable "mongodb_ami" {
+  description = "AMI ID for Amazon Linux 2023 in us-east-1"
+  type        = string
+  default     = "ami-0c7217cdde317cfec"
+}
