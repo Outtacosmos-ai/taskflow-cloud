@@ -35,8 +35,7 @@ resource "aws_iam_role" "node" {
   })
 }
 
-# HARDENING: Only provide the 3 mandatory policies for EKS operation.
-# AmazonSQSFullAccess has been REMOVED to enforce IRSA security.
+# --- Node Group Policy Attachments ---
 resource "aws_iam_role_policy_attachment" "worker_node_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
   role       = aws_iam_role.node.name
@@ -49,6 +48,12 @@ resource "aws_iam_role_policy_attachment" "cni_policy" {
 
 resource "aws_iam_role_policy_attachment" "registry_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+  role       = aws_iam_role.node.name
+}
+
+# OBSERVABILITY: Allows Fluent Bit to ship logs to CloudWatch
+resource "aws_iam_role_policy_attachment" "node_CloudWatchAgentServerPolicy" {
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
   role       = aws_iam_role.node.name
 }
 
@@ -73,8 +78,6 @@ resource "aws_eks_node_group" "this" {
   node_group_name = "${var.cluster_name}-nodes"
   node_role_arn   = aws_iam_role.node.arn
   subnet_ids      = var.subnet_ids
-  
-  # Ensure nodes stay version-synced with the cluster
   version         = var.kubernetes_version 
 
   scaling_config {
@@ -85,16 +88,16 @@ resource "aws_eks_node_group" "this" {
 
   instance_types = [var.node_instance_type]
 
-  # Ensure IAM roles are ready BEFORE nodes start
+  # Ensure ALL roles and observability permissions are ready BEFORE nodes start
   depends_on = [
     aws_iam_role_policy_attachment.worker_node_policy,
     aws_iam_role_policy_attachment.cni_policy,
     aws_iam_role_policy_attachment.registry_policy,
+    aws_iam_role_policy_attachment.node_CloudWatchAgentServerPolicy,
   ]
 }
 
 # --- OIDC PROVIDER (Foundation for IRSA) ---
-# This data block allows Kubernetes to authenticate to AWS IAM
 data "tls_certificate" "this" {
   url = aws_eks_cluster.this.identity[0].oidc[0].issuer
 }

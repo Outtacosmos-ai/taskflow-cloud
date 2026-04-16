@@ -1,28 +1,25 @@
-# Creates a centralized log group for the EKS cluster application logs
-resource "aws_cloudwatch_log_group" "taskflow_logs" {
-  name              = "/ecs/taskflow-cluster"
-  retention_in_days = 14
+# NOTE: We no longer create a manual log group here because the 
+# EKS CloudWatch Observability add-on creates and manages the 
+# /aws/containerinsights/taskflow-dev/application group automatically.
 
-  tags = {
-    Environment = var.environment
-    Project     = "TaskFlow"
-  }
-}
-
-# Creates a metric filter to count Errors in the backend logs
+# Creates a metric filter to scan the ACTIVE EKS application logs for errors
 resource "aws_cloudwatch_log_metric_filter" "backend_errors" {
   name           = "TaskFlow-Backend-Errors"
   pattern        = "ERROR"
-  log_group_name = aws_cloudwatch_log_group.taskflow_logs.name
+  
+  # Pointing to the group created by the EKS Add-on
+  log_group_name = "/aws/containerinsights/taskflow-dev/application"
 
   metric_transformation {
-    name      = "ErrorCount"
-    namespace = "TaskFlowMetrics"
-    value     = "1"
+    name          = "ErrorCount"
+    namespace     = "TaskFlowMetrics"
+    value         = "1"
+    # default_value = 0 ensures the metric exists even when there are no errors
+    default_value = 0
   }
 }
 
-# Creates an Alarm if there are too many errors
+# Creates an Alarm that triggers if 10+ errors occur within 10 minutes (2 periods of 5m)
 resource "aws_cloudwatch_metric_alarm" "high_error_rate" {
   alarm_name          = "taskflow-high-error-rate"
   comparison_operator = "GreaterThanThreshold"
@@ -32,5 +29,8 @@ resource "aws_cloudwatch_metric_alarm" "high_error_rate" {
   period              = "300"
   statistic           = "Sum"
   threshold           = "10"
-  alarm_description   = "This metric monitors backend errors"
+  alarm_description   = "This metric monitors backend errors in the EKS application logs"
+  
+  # Optional: treat_missing_data as "notBreaching" prevents false alarms if logs are quiet
+  treat_missing_data  = "notBreaching"
 }

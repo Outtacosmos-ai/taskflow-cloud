@@ -164,3 +164,9 @@ resource "aws_instance" "mongodb_server" {
 output "pod_role_arn" {
   value = aws_iam_role.taskflow_pod_role.arn
 }
+
+# --- CloudWatch Monitoring Module ---
+module "monitoring" {
+  source      = "../../modules/cloudwatch"
+  environment = "dev"
+}
