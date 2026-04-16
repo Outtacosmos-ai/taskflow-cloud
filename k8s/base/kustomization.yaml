@@ -1,6 +1,5 @@
 resources:
   - namespace.yaml
-  - secrets.yaml
   - mongodb-pvc.yaml
   - mongodb-deployment.yaml
   - mongodb-service.yaml

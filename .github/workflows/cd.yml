@@ -15,6 +15,7 @@ jobs:
     strategy:
       matrix:
         service: [frontend, backend, worker]
+    
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -30,27 +31,40 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Deploy to EKS & Verify
-        env:
-          # OUR CRITICAL FIX: Give kubectl its eyes
-          KUBECONFIG: /home/runner/.kube/config
+      - name: Sync Secrets from AWS to K8s
         run: |
           # 1. Authenticate to cluster
           aws eks update-kubeconfig --name taskflow-dev --region us-east-1
           
-          # 2. Force context (Fixes localhost:8080 bug)
+          # 2. Fetch the JSON from AWS Secrets Manager and parse the specific key
+          # Using jq to extract the jwt-secret value from the AWS JSON response
+          JWT_VAL=$(aws secretsmanager get-secret-value --secret-id taskflow/dev/backend --query SecretString --output text | jq -r '."jwt-secret"')
+          
+          # 3. Create/Update the K8s secret dynamically
+          # This lives only in the cluster's memory/etcd, never in your Git repository.
+          kubectl create secret generic taskflow-secrets \
+            --from-literal=jwt-secret=$JWT_VAL \
+            --namespace taskflow \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy to EKS & Verify
+        env:
+          KUBECONFIG: /home/runner/.kube/config
+        run: |
+          # 1. Ensure we are in the correct cluster context
           kubectl config use-context arn:aws:eks:us-east-1:657577038059:cluster/taskflow-dev
           
-          # 3. Deploy new image
+          # 2. Deploy new image using the commit SHA from the CI build
           echo "Deploying ${{ matrix.service }}..."
           kubectl set image deployment/taskflow-${{ matrix.service }} \
             ${{ matrix.service }}=${{ steps.login-ecr.outputs.registry }}/taskflow-${{ matrix.service }}:${{ github.sha }} \
             -n taskflow
             
-          # 4. Wait for rollout (Timeout after 3 minutes)
+          # 3. Wait for rollout (Timeout after 3 minutes to trigger rollback if stuck)
           kubectl rollout status deployment/taskflow-${{ matrix.service }} -n taskflow --timeout=3m
 
       # PFE REQUIREMENT: Automated Rollback
+      # This step only triggers if the 'Deploy' step fails or times out.
       - name: Rollback on Failure
         if: failure()
         env:

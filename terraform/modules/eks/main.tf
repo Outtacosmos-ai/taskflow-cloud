@@ -1,4 +1,4 @@
-# --- IAM Role for EKS Cluster ---
+# --- IAM Role for EKS Cluster Control Plane ---
 resource "aws_iam_role" "cluster" {
   name = "${var.cluster_name}-cluster-role"
 
@@ -19,7 +19,7 @@ resource "aws_iam_role_policy_attachment" "cluster_policy" {
   role       = aws_iam_role.cluster.name
 }
 
-# --- IAM Role for EKS Node Group ---
+# --- IAM Role for EKS Node Group (The Worker Nodes) ---
 resource "aws_iam_role" "node" {
   name = "${var.cluster_name}-node-role"
 
@@ -35,6 +35,8 @@ resource "aws_iam_role" "node" {
   })
 }
 
+# HARDENING: Only provide the 3 mandatory policies for EKS operation.
+# AmazonSQSFullAccess has been REMOVED to enforce IRSA security.
 resource "aws_iam_role_policy_attachment" "worker_node_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
   role       = aws_iam_role.node.name
@@ -50,7 +52,7 @@ resource "aws_iam_role_policy_attachment" "registry_policy" {
   role       = aws_iam_role.node.name
 }
 
-# --- EKS Cluster ---
+# --- EKS Cluster Resource ---
 resource "aws_eks_cluster" "this" {
   name     = var.cluster_name
   version  = var.kubernetes_version
@@ -65,12 +67,15 @@ resource "aws_eks_cluster" "this" {
   ]
 }
 
-# --- EKS Node Group ---
+# --- Managed Node Group Resource ---
 resource "aws_eks_node_group" "this" {
   cluster_name    = aws_eks_cluster.this.name
   node_group_name = "${var.cluster_name}-nodes"
   node_role_arn   = aws_iam_role.node.arn
   subnet_ids      = var.subnet_ids
+  
+  # Ensure nodes stay version-synced with the cluster
+  version         = var.kubernetes_version 
 
   scaling_config {
     desired_size = var.node_desired_size
@@ -80,6 +85,7 @@ resource "aws_eks_node_group" "this" {
 
   instance_types = [var.node_instance_type]
 
+  # Ensure IAM roles are ready BEFORE nodes start
   depends_on = [
     aws_iam_role_policy_attachment.worker_node_policy,
     aws_iam_role_policy_attachment.cni_policy,
@@ -87,7 +93,8 @@ resource "aws_eks_node_group" "this" {
   ]
 }
 
-# --- IRSA SUPPORT (OIDC Provider) ---
+# --- OIDC PROVIDER (Foundation for IRSA) ---
+# This data block allows Kubernetes to authenticate to AWS IAM
 data "tls_certificate" "this" {
   url = aws_eks_cluster.this.identity[0].oidc[0].issuer
 }

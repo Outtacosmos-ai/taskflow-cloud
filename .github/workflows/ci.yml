@@ -25,7 +25,7 @@ jobs:
       - name: Install Dependencies
         run: |
           cd ${{ matrix.service }}
-          npm ci # Fails if package-lock.json is out of sync
+          npm ci 
           
       - name: Run Lint
         run: |
@@ -40,7 +40,7 @@ jobs:
   # PFE REQUIREMENT: Build and Security Scan
   build-and-scan:
     runs-on: ubuntu-latest
-    needs: lint-and-test # This ensures Docker only builds IF tests pass
+    needs: lint-and-test
     strategy:
       matrix:
         service: [frontend, backend, worker]
@@ -65,16 +65,18 @@ jobs:
           docker build -t ${{ steps.login-ecr.outputs.registry }}/taskflow-${{ matrix.service }}:${{ github.sha }} .
 
       # PFE REQUIREMENT: Trivy Security Scanning
+      # FIXED: Changed exit-code to '1' to ensure the pipeline stops on CRITICAL vulnerabilities.
       - name: Run Trivy Security Scan
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ steps.login-ecr.outputs.registry }}/taskflow-${{ matrix.service }}:${{ github.sha }}
           format: 'table'
-          exit-code: '0' # Fails the pipeline if CRITICAL vulnerabilities are found
+          exit-code: '1' 
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL'
 
+      # Only pushes if the Trivy scan above returns an exit code of 0 (no criticals).
       - name: Push to ECR (If Scan Passes & on Main)
         if: github.ref == 'refs/heads/main' && success()
         run: |
