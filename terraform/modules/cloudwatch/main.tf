@@ -1,36 +1,38 @@
-# NOTE: We no longer create a manual log group here because the 
-# EKS CloudWatch Observability add-on creates and manages the 
-# /aws/containerinsights/taskflow-dev/application group automatically.
-
-# Creates a metric filter to scan the ACTIVE EKS application logs for errors
+# Metric Filter (Identifies the errors in logs)
 resource "aws_cloudwatch_log_metric_filter" "backend_errors" {
   name           = "TaskFlow-Backend-Errors"
   pattern        = "ERROR"
-  
-  # Pointing to the group created by the EKS Add-on
   log_group_name = "/aws/containerinsights/taskflow-dev/application"
 
   metric_transformation {
     name          = "ErrorCount"
     namespace     = "TaskFlowMetrics"
     value         = "1"
-    # default_value = 0 ensures the metric exists even when there are no errors
     default_value = 0
   }
 }
 
-# Creates an Alarm that triggers if 10+ errors occur within 10 minutes (2 periods of 5m)
+# The "Audit-Proof" Alarm
 resource "aws_cloudwatch_metric_alarm" "high_error_rate" {
   alarm_name          = "taskflow-high-error-rate"
   comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = "2"
+  
+  # Sharp response: 1 period of 1 minute
+  evaluation_periods  = "1"
   metric_name         = "ErrorCount"
   namespace           = "TaskFlowMetrics"
-  period              = "300"
+  period              = "60" 
   statistic           = "Sum"
-  threshold           = "10"
-  alarm_description   = "This metric monitors backend errors in the EKS application logs"
   
-  # Optional: treat_missing_data as "notBreaching" prevents false alarms if logs are quiet
-  treat_missing_data  = "notBreaching"
+  # Threshold at 1: Any error triggers the alarm
+  threshold           = "1" 
+
+  # Treat missing data as a breach to detect service silence
+  treat_missing_data  = "breaching" 
+
+  # Link to the SNS topic passed via variable
+  alarm_actions       = [var.sns_topic_arn]
+  ok_actions          = [var.sns_topic_arn]
+
+  alarm_description   = "Immediate alert for backend errors or DB connection loss. Audit threshold set to 1 error/min."
 }

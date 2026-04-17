@@ -51,7 +51,6 @@ resource "aws_iam_role_policy_attachment" "registry_policy" {
   role       = aws_iam_role.node.name
 }
 
-# OBSERVABILITY: Allows Fluent Bit to ship logs to CloudWatch
 resource "aws_iam_role_policy_attachment" "node_CloudWatchAgentServerPolicy" {
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
   role       = aws_iam_role.node.name
@@ -65,6 +64,11 @@ resource "aws_eks_cluster" "this" {
 
   vpc_config {
     subnet_ids = var.subnet_ids
+  }
+
+  access_config {
+    authentication_mode                         = "API_AND_CONFIG_MAP"
+    bootstrap_cluster_creator_admin_permissions = true 
   }
 
   depends_on = [
@@ -88,7 +92,6 @@ resource "aws_eks_node_group" "this" {
 
   instance_types = [var.node_instance_type]
 
-  # Ensure ALL roles and observability permissions are ready BEFORE nodes start
   depends_on = [
     aws_iam_role_policy_attachment.worker_node_policy,
     aws_iam_role_policy_attachment.cni_policy,
@@ -97,7 +100,7 @@ resource "aws_eks_node_group" "this" {
   ]
 }
 
-# --- OIDC PROVIDER (Foundation for IRSA) ---
+# --- OIDC PROVIDER ---
 data "tls_certificate" "this" {
   url = aws_eks_cluster.this.identity[0].oidc[0].issuer
 }
@@ -106,4 +109,40 @@ resource "aws_iam_openid_connect_provider" "oidc" {
   client_id_list  = ["sts.amazonaws.com"]
   thumbprint_list = [data.tls_certificate.this.certificates[0].sha1_fingerprint]
   url             = aws_eks_cluster.this.identity[0].oidc[0].issuer
+}
+
+# --- CONSOLE ACCESS ENTRIES ---
+
+# 1. Terminal Access (taskflow-admin)
+resource "aws_eks_access_entry" "terminal_access" {
+  cluster_name      = aws_eks_cluster.this.name
+  principal_arn     = "arn:aws:iam::657577038059:user/taskflow-admin"
+  type              = "STANDARD"
+}
+
+resource "aws_eks_access_policy_association" "terminal_admin" {
+  cluster_name  = aws_eks_cluster.this.name
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+  principal_arn = aws_eks_access_entry.terminal_access.principal_arn
+
+  access_scope {
+    type = "cluster"
+  }
+}
+
+# 2. Browser Access (Root/outtacosmos)
+resource "aws_eks_access_entry" "browser_access" {
+  cluster_name      = aws_eks_cluster.this.name
+  principal_arn     = "arn:aws:iam::657577038059:root" 
+  type              = "STANDARD"
+}
+
+resource "aws_eks_access_policy_association" "browser_admin" {
+  cluster_name  = aws_eks_cluster.this.name
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+  principal_arn = aws_eks_access_entry.browser_access.principal_arn
+
+  access_scope {
+    type = "cluster"
+  }
 }

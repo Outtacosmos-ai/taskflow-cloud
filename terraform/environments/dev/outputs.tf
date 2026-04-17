@@ -10,11 +10,14 @@ output "eks_cluster_endpoint" {
   value = module.eks.cluster_endpoint
 }
 
-output "sqs_queue_url" {
-  value = module.sqs.queue_url
+output "mongodb_private_ip" {
+  value = aws_instance.mongodb_server.private_ip
 }
 
-output "mongodb_private_ip" {
-  description = "The Private IP of the MongoDB server"
-  value       = aws_instance.mongodb_server.private_ip
+output "pod_role_arn" {
+  value = aws_iam_role.taskflow_pod_role.arn
+}
+
+output "sqs_queue_url" {
+  value = module.sqs.queue_url
 }

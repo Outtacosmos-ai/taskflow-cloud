@@ -132,7 +132,7 @@ resource "aws_security_group" "mongodb_sg" {
     from_port   = 27017
     to_port     = 27017
     protocol    = "tcp"
-    cidr_blocks = [module.vpc.vpc_cidr]
+    cidr_blocks = ["10.0.0.0/16"] 
   }
 
   egress {
@@ -149,24 +149,45 @@ resource "aws_instance" "mongodb_server" {
   subnet_id              = module.vpc.private_subnet_ids[0]
   vpc_security_group_ids = [aws_security_group.mongodb_sg.id]
 
+  # AUDIT PROOF: Docker Volume Mount for Persistence
   user_data = <<-EOF
               #!/bin/bash
-              yum update -y
-              yum install -y docker
+              sleep 30
+              apt-get update -y
+              apt-get install -y docker.io
               systemctl start docker
               systemctl enable docker
-              docker run -d -p 27017:27017 --name mongodb mongo:latest
+              
+              # Create host directory for DB storage
+              mkdir -p /data/db
+              chown 999:999 /data/db
+              
+              # Run Mongo with persistent mount
+              docker run -d \
+                -p 27017:27017 \
+                --name mongodb \
+                --restart always \
+                -v /data/db:/data/db \
+                mongo:latest
               EOF
 
   tags = merge(var.tags, { Name = "TaskFlow-Dev-Budget-DB" })
 }
 
-output "pod_role_arn" {
-  value = aws_iam_role.taskflow_pod_role.arn
+# --- SNS ALERTING ---
+resource "aws_sns_topic" "taskflow_alerts" {
+  name = "TaskFlow-Alerts-Dev"
+}
+
+resource "aws_sns_topic_subscription" "email_alert" {
+  topic_arn = aws_sns_topic.taskflow_alerts.arn
+  protocol  = "email"
+  endpoint  = "m.essrhir98@gmail.com"
 }
 
 # --- CloudWatch Monitoring Module ---
 module "monitoring" {
-  source      = "../../modules/cloudwatch"
-  environment = "dev"
+  source        = "../../modules/cloudwatch"
+  environment   = "dev"
+  sns_topic_arn = aws_sns_topic.taskflow_alerts.arn
 }
