@@ -52,9 +52,9 @@ const Dashboard = () => {
                 <table className="w-full text-left">
                     <thead className="bg-gray-100 uppercase text-xs">
                         <tr>
-                            <th className="p-3">Task Title</th>
-                            <th className="p-3">Status</th>
-                            <th className="p-3">Priority</th>
+                            <th className="p-3"></th>
+                            <th className="p-3"></th>
+                            <th className="p-3"></th>
                         </tr>
                     </thead>
                     <tbody>
